@@ -13,14 +13,15 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import mysql.connector
 
-# ----------------- MySQL Connection Setup -----------------
+# ----------------- MySQL Connection Setup (Clever Cloud) -----------------
 @st.cache_resource
 def get_db_connection():
     return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="",
-        database="mental_health_db"
+        host="your_host.clever-cloud.com",      # Replace with Clever Cloud host
+        user="your_username",                   # Replace with Clever Cloud user
+        password="your_password",               # Replace with Clever Cloud password
+        database="your_database_name",          # Replace with Clever Cloud database
+        port=3306
     )
 
 conn = get_db_connection()
@@ -54,7 +55,7 @@ if not st.session_state.authenticated:
             st.session_state.user = username
             st.session_state.role = users[username]["role"]
             st.success(f"Welcome, {username}!")
-            st.rerun()  # Updated rerun
+            st.rerun()
         else:
             st.error("Invalid credentials")
     st.stop()
@@ -89,19 +90,13 @@ if st.session_state.logout_confirm:
 
 # ----------------- Student View -----------------
 if st.session_state.role == "student":
-
-    # Header
-    st.markdown(
-        """
+    st.markdown("""
         <div style='text-align: center; margin-bottom: 20px;'>
             <h1 style='color:#4B8BBE;'>🧠 Student Mental Health Prediction</h1>
             <p style='font-size:18px;'>Predict whether a student may need mental health support using a trained ML model.</p>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
 
-    # Input Form
     with st.form("mental_health_form"):
         gender = st.selectbox("Choose your gender", ["Female", "Male"])
         age = st.number_input("Enter your age", min_value=16, max_value=40, step=1)
@@ -120,7 +115,7 @@ if st.session_state.role == "student":
         course_map = {"Engineering": 0, "Business": 1, "Arts": 2, "Science": 3, "Other": 4}
         binary_map = {"Yes": 1, "No": 0}
 
-        input_data = np.array([[  
+        input_data = np.array([[
             gender_map[gender],
             age,
             course_map[course],
@@ -140,15 +135,14 @@ if st.session_state.role == "student":
             st.error("⚠️ The student **may need mental health support**. Please consider counseling.")
         else:
             st.success("✅ The student **does not currently show strong indicators** of needing counseling.")
-        
+
         st.info(f"📊 Model confidence: **{confidence}%**")
 
-        # Store in MySQL
         insert_query = """
-        INSERT INTO submissions (
-            username, gender, age, course, year, cgpa, marital_status,
-            anxiety, panic_attack, specialist, prediction_result, confidence_score
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO submissions (
+                username, gender, age, course, year, cgpa, marital_status,
+                anxiety, panic_attack, specialist, prediction_result, confidence_score
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         result_label = "Needs Support" if prediction == 1 else "No Strong Indicators"
 
@@ -161,7 +155,6 @@ if st.session_state.role == "student":
         cursor.execute(insert_query, record)
         conn.commit()
 
-        # Visualizations
         st.subheader("📈 Submitted Input Summary")
 
         st.markdown("### Academic Info")
@@ -174,7 +167,8 @@ if st.session_state.role == "student":
         mh_labels = ["Anxiety", "Panic Attack", "Sought Specialist"]
         mh_values = [binary_map[anxiety], binary_map[panic_attack], binary_map[specialist]]
         fig2, ax2 = plt.subplots()
-        ax2.pie(mh_values, labels=mh_labels, autopct=lambda p: f'{p:.0f}%' if p > 0 else '', colors=['#FF9999','#66B2FF','#99FF99'])
+        ax2.pie(mh_values, labels=mh_labels, autopct=lambda p: f'{p:.0f}%' if p > 0 else '',
+                colors=['#FF9999','#66B2FF','#99FF99'])
         ax2.set_title("Mental Health Responses")
         st.pyplot(fig2)
 
@@ -189,12 +183,9 @@ elif st.session_state.role == "admin":
         st.info("No submissions yet.")
 
 # ----------------- Footer -----------------
-st.markdown(
-    """
+st.markdown("""
     <hr>
     <p style='text-align:center; font-size: 14px;'>
     Made with ❤️ by Kelvin Maina | <a href="https://github.com/kevobinkou" target="_blank">GitHub</a>
     </p>
-    """,
-    unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
