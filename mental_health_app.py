@@ -1,7 +1,11 @@
 import streamlit as st
 import joblib
 import numpy as np
-from PIL import Image  # For displaying the logo
+from PIL import Image
+import matplotlib.pyplot as plt
+
+# Load trained model
+model = joblib.load("mental_health_model.pkl")
 
 # Set page config
 st.set_page_config(
@@ -12,7 +16,7 @@ st.set_page_config(
 
 # Display logo
 logo = Image.open("student_grade_predictor.jpg")
-st.image(logo, width=180)  # Adjust width if needed
+st.image(logo, width=180)
 
 # Custom header
 st.markdown(
@@ -58,13 +62,42 @@ if submit:
     ]])
 
     prediction = model.predict(input_data)[0]
+    proba = model.predict_proba(input_data)[0]
+    confidence = round(np.max(proba) * 100, 2)
 
+    # Show result
     if prediction == 1:
         st.error("⚠️ The student **may need mental health support**. Please consider counseling.")
     else:
         st.success("✅ The student **does not currently show strong indicators** of needing counseling.")
+    
+    st.info(f"📊 Model confidence: **{confidence}%**")
 
-# Custom footer
+    # --- 🎯 Visual Summary ---
+    st.subheader("📈 Submitted Input Summary")
+
+    # Bar chart of academic factors
+    st.markdown("### Academic Info")
+    fig, ax = plt.subplots()
+    ax.bar(["Age", "CGPA", "Study Year"], [age, cgpa, year], color="#4B8BBE")
+    ax.set_ylabel("Value")
+    st.pyplot(fig)
+
+    # Pie chart of mental health indicators
+    st.markdown("### Reported Mental Health Indicators")
+    mh_labels = ["Anxiety", "Panic Attack", "Sought Specialist"]
+    mh_values = [
+        binary_map[anxiety],
+        binary_map[panic_attack],
+        binary_map[specialist]
+    ]
+
+    fig2, ax2 = plt.subplots()
+    ax2.pie(mh_values, labels=mh_labels, autopct=lambda p: f'{p:.0f}%' if p > 0 else '', colors=['#FF9999','#66B2FF','#99FF99'])
+    ax2.set_title("Mental Health Responses")
+    st.pyplot(fig2)
+
+# Footer
 st.markdown(
     """
     <hr>
