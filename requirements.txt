@@ -4,4 +4,4 @@ joblib
 Pillow
 matplotlib
 mysql-connector-python
-
+scikit-learn
