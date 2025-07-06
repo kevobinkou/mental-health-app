@@ -1,12 +1,18 @@
 import streamlit as st
 import joblib
 import numpy as np
-
-# Load trained model
-model = joblib.load("mental_health_model.pkl")
+from PIL import Image  # For displaying the logo
 
 # Set page config
-st.set_page_config(page_title="Student Mental Health Prediction", layout="centered")
+st.set_page_config(
+    page_title="Student Mental Health Prediction",
+    layout="centered",
+    page_icon="🧠"
+)
+
+# Display logo
+logo = Image.open("student_grade_predictor.jpg")
+st.image(logo, width=180)  # Adjust width if needed
 
 # Custom header
 st.markdown(
@@ -39,7 +45,7 @@ if submit:
     course_map = {"Engineering": 0, "Business": 1, "Arts": 2, "Science": 3, "Other": 4}
     binary_map = {"Yes": 1, "No": 0}
 
-    input_data = np.array([[
+    input_data = np.array([[  
         gender_map[gender],
         age,
         course_map[course],
