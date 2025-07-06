@@ -3,7 +3,7 @@
 A machine learning-powered Streamlit app that predicts whether a student may need mental health support based on survey inputs such as CGPA, anxiety levels, and year of study.
 
  🚀 Demo
-[👉 Live App on Streamlit (Optional if deployed)](https://your-username.streamlit.app)
+[👉 Live App on Streamlit ](https://github.com/kevobinkou/mental-health-app.git)
 
  📦 Features
 - Predicts likelihood of mental health issues in students
