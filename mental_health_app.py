@@ -4,6 +4,36 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 
+# --------------------------
+# 🔐 Basic Authentication
+# --------------------------
+# Define allowed users
+users = {
+    "admin": "1234",
+    "student": "abcd"
+}
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.title("🔐 Login Required")
+    with st.form("login_form"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        login = st.form_submit_button("Login")
+        if login:
+            if username in users and users[username] == password:
+                st.session_state.authenticated = True
+                st.experimental_rerun()
+            else:
+                st.error("Invalid username or password.")
+    st.stop()
+
+# --------------------------
+# 🚀 App Starts Here
+# --------------------------
+
 # Load trained model
 model = joblib.load("mental_health_model.pkl")
 
@@ -65,7 +95,6 @@ if submit:
     proba = model.predict_proba(input_data)[0]
     confidence = round(np.max(proba) * 100, 2)
 
-    # Show result
     if prediction == 1:
         st.error("⚠️ The student **may need mental health support**. Please consider counseling.")
     else:
