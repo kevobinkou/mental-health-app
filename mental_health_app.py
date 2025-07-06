@@ -1,59 +1,96 @@
+# ----------------- Page configuration -----------------
 import streamlit as st
-import joblib
-import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
-import pandas as pd
-import os
-
-# --- Load Model ---
-model = joblib.load("mental_health_model.pkl")
-
-# --- Page Config ---
 st.set_page_config(
     page_title="Student Mental Health Prediction",
     layout="centered",
     page_icon="🧠"
 )
 
-# --- Display Logo ---
+# ----------------- Imports -----------------
+import joblib
+import numpy as np
+from PIL import Image
+import matplotlib.pyplot as plt
+import mysql.connector
+
+# ----------------- MySQL Connection Setup -----------------
+@st.cache_resource
+def get_db_connection():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="mental_health_db"
+    )
+
+conn = get_db_connection()
+cursor = conn.cursor()
+
+# ----------------- Load trained model -----------------
+model = joblib.load("mental_health_model.pkl")
+
+# ----------------- Logo -----------------
 logo = Image.open("student_grade_predictor.jpg")
 st.image(logo, width=180)
 
-# --- LOGIN AUTHENTICATION ---
+# ----------------- Login Authentication -----------------
 users = {
-    "student1": {"password": "stud123", "role": "student"},
-    "admin1": {"password": "admin123", "role": "admin"}
+    "admin": {"password": "adminpass", "role": "admin"},
+    "student": {"password": "studpass", "role": "student"}
 }
 
-def login():
-    st.sidebar.header("🔐 Login")
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Login"):
-        user = users.get(username)
-        if user and user["password"] == password:
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.session_state.role = user["role"]
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+    st.session_state.user = ""
+    st.session_state.role = ""
+
+if not st.session_state.authenticated:
+    st.subheader("🔐 Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username in users and users[username]["password"] == password:
+            st.session_state.authenticated = True
+            st.session_state.user = username
+            st.session_state.role = users[username]["role"]
+            st.success(f"Welcome, {username}!")
+            st.rerun()  # Updated rerun
         else:
-            st.sidebar.error("Invalid credentials")
-
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if not st.session_state.logged_in:
-    login()
+            st.error("Invalid credentials")
     st.stop()
 
-# --- Welcome Message ---
-st.success(f"Welcome {st.session_state.username}!")
+# ----------------- Logout Option with Confirmation (Styled) -----------------
+st.sidebar.markdown(f"👤 Logged in as: `{st.session_state.user}`")
+st.sidebar.markdown("---")
 
-# --- STUDENT ACCESS SECTION ---
+if "logout_confirm" not in st.session_state:
+    st.session_state.logout_confirm = False
+
+if st.sidebar.button("🚪 Logout"):
+    st.session_state.logout_confirm = True
+
+if st.session_state.logout_confirm:
+    st.sidebar.markdown(
+        """
+        <div style="background-color: #FFF3CD; padding: 15px; border-radius: 10px; border: 1px solid #FFEEBA;">
+            <strong>⚠️ Are you sure you want to logout?</strong>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        if st.button("✅ Yes"):
+            st.session_state.clear()
+            st.rerun()
+    with col2:
+        if st.button("❌ No"):
+            st.session_state.logout_confirm = False
+
+# ----------------- Student View -----------------
 if st.session_state.role == "student":
-    st.info("You are logged in as a **student**.")
 
-    # --- Custom Header ---
+    # Header
     st.markdown(
         """
         <div style='text-align: center; margin-bottom: 20px;'>
@@ -64,7 +101,7 @@ if st.session_state.role == "student":
         unsafe_allow_html=True
     )
 
-    # --- Input Form ---
+    # Input Form
     with st.form("mental_health_form"):
         gender = st.selectbox("Choose your gender", ["Female", "Male"])
         age = st.number_input("Enter your age", min_value=16, max_value=40, step=1)
@@ -77,7 +114,6 @@ if st.session_state.role == "student":
         specialist = st.radio("Did you seek any specialist for a treatment?", ["Yes", "No"])
         submit = st.form_submit_button("🔍 Predict")
 
-    # --- Process Input ---
     if submit:
         gender_map = {"Female": 0, "Male": 1}
         marital_map = {"Single": 0, "Married": 1, "Other": 2}
@@ -100,7 +136,6 @@ if st.session_state.role == "student":
         proba = model.predict_proba(input_data)[0]
         confidence = round(np.max(proba) * 100, 2)
 
-        # --- Show Result ---
         if prediction == 1:
             st.error("⚠️ The student **may need mental health support**. Please consider counseling.")
         else:
@@ -108,54 +143,52 @@ if st.session_state.role == "student":
         
         st.info(f"📊 Model confidence: **{confidence}%**")
 
-        # --- Log Submission ---
-        log_submission = {
-            "user": st.session_state.username,
-            "age": age,
-            "cgpa": cgpa,
-            "year": year,
-            "prediction": prediction,
-            "confidence": confidence
-        }
-        log_file = "submission_log.csv"
-        pd.DataFrame([log_submission]).to_csv(log_file, mode='a', header=not os.path.exists(log_file), index=False)
+        # Store in MySQL
+        insert_query = """
+        INSERT INTO submissions (
+            username, gender, age, course, year, cgpa, marital_status,
+            anxiety, panic_attack, specialist, prediction_result, confidence_score
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        result_label = "Needs Support" if prediction == 1 else "No Strong Indicators"
 
-        # --- Visualizations ---
+        record = (
+            st.session_state.user,
+            gender, age, course, year, cgpa, marital_status,
+            binary_map[anxiety], binary_map[panic_attack], binary_map[specialist],
+            result_label, confidence
+        )
+        cursor.execute(insert_query, record)
+        conn.commit()
+
+        # Visualizations
         st.subheader("📈 Submitted Input Summary")
 
-        # Bar Chart: Academic Factors
         st.markdown("### Academic Info")
         fig, ax = plt.subplots()
         ax.bar(["Age", "CGPA", "Study Year"], [age, cgpa, year], color="#4B8BBE")
         ax.set_ylabel("Value")
         st.pyplot(fig)
 
-        # Pie Chart: Mental Health Indicators
         st.markdown("### Reported Mental Health Indicators")
         mh_labels = ["Anxiety", "Panic Attack", "Sought Specialist"]
-        mh_values = [
-            binary_map[anxiety],
-            binary_map[panic_attack],
-            binary_map[specialist]
-        ]
+        mh_values = [binary_map[anxiety], binary_map[panic_attack], binary_map[specialist]]
         fig2, ax2 = plt.subplots()
         ax2.pie(mh_values, labels=mh_labels, autopct=lambda p: f'{p:.0f}%' if p > 0 else '', colors=['#FF9999','#66B2FF','#99FF99'])
         ax2.set_title("Mental Health Responses")
         st.pyplot(fig2)
 
-# --- ADMIN ACCESS SECTION ---
+# ----------------- Admin View -----------------
 elif st.session_state.role == "admin":
-    st.info("You are logged in as an **admin**.")
     st.subheader("📋 Admin Dashboard")
-
-    log_file = "submission_log.csv"
-    if os.path.exists(log_file):
-        df = pd.read_csv(log_file)
-        st.dataframe(df)
+    cursor.execute("SELECT * FROM submissions ORDER BY submission_time DESC")
+    data = cursor.fetchall()
+    if data:
+        st.dataframe(data, use_container_width=True)
     else:
-        st.warning("No student submissions found yet.")
+        st.info("No submissions yet.")
 
-# --- Footer ---
+# ----------------- Footer -----------------
 st.markdown(
     """
     <hr>
