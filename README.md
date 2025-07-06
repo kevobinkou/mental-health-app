@@ -36,3 +36,13 @@ pip install -r requirements.txt
 streamlit run mental_health_app.py
 ✍️ Author
 Kelvin Maina - @kevobinkou
+
+</details>
+
+Copy this into your `README.md` file and push:
+```bash
+git add README.md
+git commit -m "Add professional README"
+git push
+
+
