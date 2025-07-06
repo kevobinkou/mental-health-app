@@ -36,7 +36,9 @@ pip install -r requirements.txt
 streamlit run mental_health_app.py
 ✍️ Author
 Kelvin Maina - @kevobinkou
+ License
 
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 </details>
 
 Copy this into your `README.md` file and push:
