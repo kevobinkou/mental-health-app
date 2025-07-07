@@ -1,8 +1,7 @@
 streamlit
+scikit-learn
 numpy
-joblib
-Pillow
 matplotlib
+pillow
 mysql-connector-python
-scikit-learn==1.6.1
-
+python-dotenv
