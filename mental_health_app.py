@@ -115,7 +115,7 @@ if st.session_state.role == "student":
         course_map = {"Engineering": 0, "Business": 1, "Arts": 2, "Science": 3, "Other": 4}
         binary_map = {"Yes": 1, "No": 0}
 
-        input_data = np.array([[
+        input_data = np.array([[ 
             gender_map[gender],
             age,
             course_map[course],
@@ -138,23 +138,36 @@ if st.session_state.role == "student":
 
         st.info(f"📊 Model confidence: **{confidence}%**")
 
+        # Corrected data mapping for DB
+        record = (
+            st.session_state.user,
+            gender_map[gender],
+            age,
+            course_map[course],
+            year,
+            cgpa,
+            marital_map[marital_status],
+            binary_map[anxiety],
+            binary_map[panic_attack],
+            binary_map[specialist],
+            "Needs Support" if prediction == 1 else "No Strong Indicators",
+            confidence
+        )
+
         insert_query = """
             INSERT INTO submissions (
                 username, gender, age, course, year, cgpa, marital_status,
                 anxiety, panic_attack, specialist, prediction_result, confidence_score
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-        result_label = "Needs Support" if prediction == 1 else "No Strong Indicators"
 
-        record = (
-            st.session_state.user,
-            gender, age, course, year, cgpa, marital_status,
-            binary_map[anxiety], binary_map[panic_attack], binary_map[specialist],
-            result_label, confidence
-        )
-        cursor.execute(insert_query, record)
-        conn.commit()
-
+        try:
+            cursor.execute(insert_query, record)
+            conn.commit()
+        except mysql.connector.Error as err:
+            st.error(f"❌ Database insert error: {err}")
+        
+        # ---------- Visualization ----------
         st.subheader("📈 Submitted Input Summary")
 
         st.markdown("### Academic Info")
@@ -175,12 +188,15 @@ if st.session_state.role == "student":
 # ----------------- Admin View -----------------
 elif st.session_state.role == "admin":
     st.subheader("📋 Admin Dashboard")
-    cursor.execute("SELECT * FROM submissions ORDER BY submission_time DESC")
-    data = cursor.fetchall()
-    if data:
-        st.dataframe(data, use_container_width=True)
-    else:
-        st.info("No submissions yet.")
+    try:
+        cursor.execute("SELECT * FROM submissions ORDER BY submission_time DESC")
+        data = cursor.fetchall()
+        if data:
+            st.dataframe(data, use_container_width=True)
+        else:
+            st.info("No submissions yet.")
+    except mysql.connector.Error as err:
+        st.error(f"⚠️ Failed to load submissions: {err}")
 
 # ----------------- Footer -----------------
 st.markdown("""
