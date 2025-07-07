@@ -16,16 +16,24 @@ import mysql.connector
 # ----------------- MySQL Connection Setup -----------------
 @st.cache_resource
 def get_db_connection():
-    return mysql.connector.connect(
-        host=st.secrets["DB_HOST"],
-        user=st.secrets["DB_USER"],
-        password=st.secrets["DB_PASSWORD"],
-        database=st.secrets["DB_NAME"],
-        port=3306
-    )
+    try:
+        conn = mysql.connector.connect(
+            host=st.secrets["DB_HOST"],
+            user=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASSWORD"],
+            database=st.secrets["DB_NAME"],
+            port=3306
+        )
+        return conn
+    except mysql.connector.Error as err:
+        st.error(f"❌ Database connection failed: {err}")
+        return None
 
 conn = get_db_connection()
-cursor = conn.cursor()
+if conn:
+    cursor = conn.cursor()
+else:
+    st.stop()
 
 # ----------------- Load trained model -----------------
 model = joblib.load("mental_health_model.pkl")
@@ -117,10 +125,10 @@ if st.session_state.role == "student":
 
         input_data = np.array([[ 
             gender_map[gender],
-            age,
+            int(age),
             course_map[course],
-            year,
-            cgpa,
+            int(year),
+            float(cgpa),
             marital_map[marital_status],
             binary_map[anxiety],
             binary_map[panic_attack],
@@ -138,14 +146,13 @@ if st.session_state.role == "student":
 
         st.info(f"📊 Model confidence: **{confidence}%**")
 
-        # Corrected data mapping for DB
         record = (
             st.session_state.user,
             gender_map[gender],
-            age,
+            int(age),
             course_map[course],
-            year,
-            cgpa,
+            int(year),
+            float(cgpa),
             marital_map[marital_status],
             binary_map[anxiety],
             binary_map[panic_attack],
@@ -166,7 +173,7 @@ if st.session_state.role == "student":
             conn.commit()
         except mysql.connector.Error as err:
             st.error(f"❌ Database insert error: {err}")
-        
+
         # ---------- Visualization ----------
         st.subheader("📈 Submitted Input Summary")
 
