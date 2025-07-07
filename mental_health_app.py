@@ -40,7 +40,7 @@ model = joblib.load("mental_health_model.pkl")
 
 # ----------------- Logo -----------------
 logo = Image.open("student_grade_predictor.jpg")
-st.image(logo, width=180)
+st.image(logo, width=160)
 
 # ----------------- Login Authentication -----------------
 users = {
@@ -54,7 +54,7 @@ if "authenticated" not in st.session_state:
     st.session_state.role = ""
 
 if not st.session_state.authenticated:
-    st.subheader("🔐 Login")
+    st.markdown("<h3 style='text-align: center; color: #4B8BBE;'>🔐 Login</h3>", unsafe_allow_html=True)
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
@@ -79,14 +79,7 @@ if st.sidebar.button("🚪 Logout"):
     st.session_state.logout_confirm = True
 
 if st.session_state.logout_confirm:
-    st.sidebar.markdown(
-        """
-        <div style="background-color: #FFF3CD; padding: 15px; border-radius: 10px; border: 1px solid #FFEEBA;">
-            <strong>⚠️ Are you sure you want to logout?</strong>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.sidebar.warning("⚠️ Are you sure you want to logout?")
     col1, col2 = st.sidebar.columns(2)
     with col1:
         if st.button("✅ Yes"):
@@ -101,20 +94,23 @@ if st.session_state.role == "student":
     st.markdown("""
         <div style='text-align: center; margin-bottom: 20px;'>
             <h1 style='color:#4B8BBE;'>🧠 Student Mental Health Prediction</h1>
-            <p style='font-size:18px;'>Predict whether a student may need mental health support using a trained ML model.</p>
+            <p style='font-size:18px;'>Predict whether you may need mental health support using a trained ML model.</p>
         </div>
     """, unsafe_allow_html=True)
 
     with st.form("mental_health_form"):
-        gender = st.selectbox("Choose your gender", ["Female", "Male"])
-        age = st.number_input("Enter your age", min_value=16, max_value=40, step=1)
-        course = st.selectbox("What is your course?", ["Engineering", "Business", "Arts", "Science", "Other"])
-        year = st.selectbox("Current year of study", [1, 2, 3, 4])
-        cgpa = st.number_input("Enter your CGPA", min_value=0.0, max_value=4.0, step=0.1)
-        marital_status = st.selectbox("Marital status", ["Single", "Married", "Other"])
-        anxiety = st.radio("Do you have Anxiety?", ["Yes", "No"])
-        panic_attack = st.radio("Do you have Panic attack?", ["Yes", "No"])
-        specialist = st.radio("Did you seek any specialist for a treatment?", ["Yes", "No"])
+        col1, col2 = st.columns(2)
+        with col1:
+            gender = st.selectbox("Gender", ["Female", "Male"])
+            age = st.number_input("Age", min_value=16, max_value=40, step=1)
+            course = st.selectbox("Course", ["Engineering", "Business", "Arts", "Science", "Other"])
+            year = st.selectbox("Study Year", [1, 2, 3, 4])
+        with col2:
+            cgpa = st.number_input("CGPA", min_value=0.0, max_value=4.0, step=0.1)
+            marital_status = st.selectbox("Marital Status", ["Single", "Married", "Other"])
+            anxiety = st.radio("Do you have Anxiety?", ["Yes", "No"])
+            panic_attack = st.radio("Do you have Panic attack?", ["Yes", "No"])
+            specialist = st.radio("Have you seen a specialist?", ["Yes", "No"])
         submit = st.form_submit_button("🔍 Predict")
 
     if submit:
@@ -140,12 +136,13 @@ if st.session_state.role == "student":
         confidence = round(np.max(proba) * 100, 2)
 
         if prediction == 1:
-            st.error("⚠️ The student **may need mental health support**. Please consider counseling.")
+            st.error("⚠️ The student **may need mental health support**.")
         else:
-            st.success("✅ The student **does not currently show strong indicators** of needing counseling.")
+            st.success("✅ The student **does not currently show strong indicators** of needing support.")
 
-        st.info(f"📊 Model confidence: **{confidence}%**")
+        st.info(f"📊 Model Confidence: **{confidence}%**")
 
+        result_label = "Needs Support" if prediction == 1 else "No Strong Indicators"
         record = (
             st.session_state.user,
             gender_map[gender],
@@ -157,7 +154,7 @@ if st.session_state.role == "student":
             binary_map[anxiety],
             binary_map[panic_attack],
             binary_map[specialist],
-            "Needs Support" if prediction == 1 else "No Strong Indicators",
+            result_label,
             confidence
         )
 
@@ -175,22 +172,26 @@ if st.session_state.role == "student":
             st.error(f"❌ Database insert error: {err}")
 
         # ---------- Visualization ----------
-        st.subheader("📈 Submitted Input Summary")
+        st.subheader("📈 Your Submitted Summary")
 
-        st.markdown("### Academic Info")
-        fig, ax = plt.subplots()
-        ax.bar(["Age", "CGPA", "Study Year"], [age, cgpa, year], color="#4B8BBE")
-        ax.set_ylabel("Value")
-        st.pyplot(fig)
+        with st.container():
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("#### Academic Info")
+                fig, ax = plt.subplots()
+                ax.bar(["Age", "CGPA", "Year"], [age, cgpa, year], color="#4B8BBE")
+                ax.set_ylabel("Value")
+                st.pyplot(fig)
 
-        st.markdown("### Reported Mental Health Indicators")
-        mh_labels = ["Anxiety", "Panic Attack", "Sought Specialist"]
-        mh_values = [binary_map[anxiety], binary_map[panic_attack], binary_map[specialist]]
-        fig2, ax2 = plt.subplots()
-        ax2.pie(mh_values, labels=mh_labels, autopct=lambda p: f'{p:.0f}%' if p > 0 else '',
-                colors=['#FF9999','#66B2FF','#99FF99'])
-        ax2.set_title("Mental Health Responses")
-        st.pyplot(fig2)
+            with col2:
+                st.markdown("#### Mental Health Indicators")
+                mh_labels = ["Anxiety", "Panic Attack", "Sought Specialist"]
+                mh_values = [binary_map[anxiety], binary_map[panic_attack], binary_map[specialist]]
+                fig2, ax2 = plt.subplots()
+                ax2.pie(mh_values, labels=mh_labels, autopct=lambda p: f'{p:.0f}%' if p > 0 else '',
+                        colors=['#FF9999','#66B2FF','#99FF99'])
+                ax2.set_title("Indicators")
+                st.pyplot(fig2)
 
 # ----------------- Admin View -----------------
 elif st.session_state.role == "admin":
@@ -208,7 +209,8 @@ elif st.session_state.role == "admin":
 # ----------------- Footer -----------------
 st.markdown("""
     <hr>
-    <p style='text-align:center; font-size: 14px;'>
-    Made with ❤️ by Kelvin Maina | <a href="https://github.com/kevobinkou" target="_blank">GitHub</a>
+    <p style='text-align:center; font-size: 14px; color: gray;'>
+    Made with ❤️ by <strong>Kelvin Maina</strong> |
+    <a href="https://github.com/kevobinkou" target="_blank">GitHub</a>
     </p>
 """, unsafe_allow_html=True)
