@@ -13,14 +13,14 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import mysql.connector
 
-# ----------------- MySQL Connection Setup (Clever Cloud) -----------------
+# ----------------- MySQL Connection Setup -----------------
 @st.cache_resource
 def get_db_connection():
     return mysql.connector.connect(
-        host="your_host.clever-cloud.com",      # Replace with Clever Cloud host
-        user="your_username",                   # Replace with Clever Cloud user
-        password="your_password",               # Replace with Clever Cloud password
-        database="your_database_name",          # Replace with Clever Cloud database
+        host=st.secrets["DB_HOST"],
+        user=st.secrets["DB_USER"],
+        password=st.secrets["DB_PASSWORD"],
+        database=st.secrets["DB_NAME"],
         port=3306
     )
 
@@ -60,7 +60,7 @@ if not st.session_state.authenticated:
             st.error("Invalid credentials")
     st.stop()
 
-# ----------------- Logout Option with Confirmation (Styled) -----------------
+# ----------------- Logout Option -----------------
 st.sidebar.markdown(f"👤 Logged in as: `{st.session_state.user}`")
 st.sidebar.markdown("---")
 

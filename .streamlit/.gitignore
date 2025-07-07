@@ -1,0 +1,69 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Model files (optional if you want to exclude trained model)
+*.pkl
+*.joblib
+
+# Streamlit Secrets (very important to protect)
+.streamlit/secrets.toml
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# VS Code settings
+.vscode/
+
+# Python environment metadata
+*.egg-info/
+.eggs/
+
+# Log and dump files
+*.log
+*.sql
+*.sqlite
+*.db
+
+# Cache folders
+.cache/
+__pycache__/
+.pytest_cache/
+
+# PyInstaller
+dist/
+build/
+
+# Streamlit logs/cache
+.streamlit/config.toml
+.streamlit/*.log
+
+# System files
+*.bak
+*.swp
+*.tmp
+
+# Don't upload your credentials, photos, or heavy files accidentally
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.avi
+*.mkv
+*.csv
+*.tsv
+
+.streamlit/secrets.toml
