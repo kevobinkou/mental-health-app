@@ -12,35 +12,51 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 import mysql.connector
-
-# ----------------- MySQL Connection Setup -----------------
-@st.cache_resource
-def get_db_connection():
-    try:
-        conn = mysql.connector.connect(
-            host=st.secrets["DB_HOST"],
-            user=st.secrets["DB_USER"],
-            password=st.secrets["DB_PASSWORD"],
-            database=st.secrets["DB_NAME"],
-            port=3306
-        )
-        return conn
-    except mysql.connector.Error as err:
-        st.error(f"❌ Database connection failed: {err}")
-        return None
-
-conn = get_db_connection()
-if conn:
-    cursor = conn.cursor()
-else:
-    st.stop()
+import time
 
 # ----------------- Load trained model -----------------
 model = joblib.load("mental_health_model.pkl")
 
 # ----------------- Logo -----------------
 logo = Image.open("student_grade_predictor.jpg")
-st.image(logo, width=160)
+st.image(logo, width=180)
+
+# ----------------- MySQL Connection Setup with Retry -----------------
+@st.cache_resource
+def get_db_connection():
+    max_retries = 3
+    delay_seconds = 3
+    attempt = 0
+
+    while attempt < max_retries:
+        try:
+            conn = mysql.connector.connect(
+                host=st.secrets["DB_HOST"],
+                user=st.secrets["DB_USER"],
+                password=st.secrets["DB_PASSWORD"],
+                database=st.secrets["DB_NAME"],
+                port=3306,
+                connection_timeout=10
+            )
+            if conn.is_connected():
+                return conn
+        except mysql.connector.Error as err:
+            attempt += 1
+            st.warning(f"🔄 Retry {attempt}/{max_retries} – Database connection failed: {err}")
+            time.sleep(delay_seconds)
+
+    st.error("❌ Could not connect to the database after multiple attempts. Please try again later.")
+    return None
+
+conn = get_db_connection()
+if conn is None:
+    st.stop()
+
+try:
+    cursor = conn.cursor()
+except mysql.connector.Error as err:
+    st.error(f"❌ Failed to create database cursor: {err}")
+    st.stop()
 
 # ----------------- Login Authentication -----------------
 users = {
@@ -54,7 +70,7 @@ if "authenticated" not in st.session_state:
     st.session_state.role = ""
 
 if not st.session_state.authenticated:
-    st.markdown("<h3 style='text-align: center; color: #4B8BBE;'>🔐 Login</h3>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#4B8BBE;'>🔐 Student Mental Health Login</h2>", unsafe_allow_html=True)
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
@@ -62,10 +78,10 @@ if not st.session_state.authenticated:
             st.session_state.authenticated = True
             st.session_state.user = username
             st.session_state.role = users[username]["role"]
-            st.success(f"Welcome, {username}!")
+            st.success(f"✅ Welcome, {username}!")
             st.rerun()
         else:
-            st.error("Invalid credentials")
+            st.error("❌ Invalid credentials")
     st.stop()
 
 # ----------------- Logout Option -----------------
@@ -79,7 +95,14 @@ if st.sidebar.button("🚪 Logout"):
     st.session_state.logout_confirm = True
 
 if st.session_state.logout_confirm:
-    st.sidebar.warning("⚠️ Are you sure you want to logout?")
+    st.sidebar.markdown(
+        """
+        <div style="background-color: #FFF3CD; padding: 15px; border-radius: 10px; border: 1px solid #FFEEBA;">
+            <strong>⚠️ Are you sure you want to logout?</strong>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     col1, col2 = st.sidebar.columns(2)
     with col1:
         if st.button("✅ Yes"):
@@ -94,7 +117,7 @@ if st.session_state.role == "student":
     st.markdown("""
         <div style='text-align: center; margin-bottom: 20px;'>
             <h1 style='color:#4B8BBE;'>🧠 Student Mental Health Prediction</h1>
-            <p style='font-size:18px;'>Predict whether you may need mental health support using a trained ML model.</p>
+            <p style='font-size:18px; color:#555;'>Predict whether a student may need mental health support using a trained ML model.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -104,12 +127,12 @@ if st.session_state.role == "student":
             gender = st.selectbox("Gender", ["Female", "Male"])
             age = st.number_input("Age", min_value=16, max_value=40, step=1)
             course = st.selectbox("Course", ["Engineering", "Business", "Arts", "Science", "Other"])
-            year = st.selectbox("Study Year", [1, 2, 3, 4])
+            year = st.selectbox("Year of Study", [1, 2, 3, 4])
         with col2:
             cgpa = st.number_input("CGPA", min_value=0.0, max_value=4.0, step=0.1)
             marital_status = st.selectbox("Marital Status", ["Single", "Married", "Other"])
             anxiety = st.radio("Do you have Anxiety?", ["Yes", "No"])
-            panic_attack = st.radio("Do you have Panic attack?", ["Yes", "No"])
+            panic_attack = st.radio("Do you have Panic Attacks?", ["Yes", "No"])
             specialist = st.radio("Have you seen a specialist?", ["Yes", "No"])
         submit = st.form_submit_button("🔍 Predict")
 
@@ -135,21 +158,17 @@ if st.session_state.role == "student":
         proba = model.predict_proba(input_data)[0]
         confidence = round(np.max(proba) * 100, 2)
 
-        if prediction == 1:
-            st.error("⚠️ The student **may need mental health support**.")
-        else:
-            st.success("✅ The student **does not currently show strong indicators** of needing support.")
-
-        st.info(f"📊 Model Confidence: **{confidence}%**")
-
         result_label = "Needs Support" if prediction == 1 else "No Strong Indicators"
+        if prediction == 1:
+            st.error("⚠️ The student may need mental health support. Please consider counseling.")
+        else:
+            st.success("✅ No strong indicators of needing mental health support.")
+
+        st.info(f"🔍 Model Confidence: **{confidence}%**")
+
         record = (
             st.session_state.user,
-            gender_map[gender],
-            int(age),
-            course_map[course],
-            int(year),
-            float(cgpa),
+            gender_map[gender], age, course_map[course], year, cgpa,
             marital_map[marital_status],
             binary_map[anxiety],
             binary_map[panic_attack],
@@ -172,26 +191,22 @@ if st.session_state.role == "student":
             st.error(f"❌ Database insert error: {err}")
 
         # ---------- Visualization ----------
-        st.subheader("📈 Your Submitted Summary")
+        st.subheader("📈 Your Submission Summary")
 
-        with st.container():
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("#### Academic Info")
-                fig, ax = plt.subplots()
-                ax.bar(["Age", "CGPA", "Year"], [age, cgpa, year], color="#4B8BBE")
-                ax.set_ylabel("Value")
-                st.pyplot(fig)
+        st.markdown("### 🎓 Academic Profile")
+        fig, ax = plt.subplots()
+        ax.bar(["Age", "CGPA", "Year"], [age, cgpa, year], color=["#4B8BBE", "#79D2DE", "#FFD166"])
+        ax.set_ylabel("Values")
+        st.pyplot(fig)
 
-            with col2:
-                st.markdown("#### Mental Health Indicators")
-                mh_labels = ["Anxiety", "Panic Attack", "Sought Specialist"]
-                mh_values = [binary_map[anxiety], binary_map[panic_attack], binary_map[specialist]]
-                fig2, ax2 = plt.subplots()
-                ax2.pie(mh_values, labels=mh_labels, autopct=lambda p: f'{p:.0f}%' if p > 0 else '',
-                        colors=['#FF9999','#66B2FF','#99FF99'])
-                ax2.set_title("Indicators")
-                st.pyplot(fig2)
+        st.markdown("### 🧠 Mental Health Indicators")
+        mh_labels = ["Anxiety", "Panic Attack", "Specialist Visit"]
+        mh_values = [binary_map[anxiety], binary_map[panic_attack], binary_map[specialist]]
+        fig2, ax2 = plt.subplots()
+        ax2.pie(mh_values, labels=mh_labels, autopct=lambda p: f'{p:.0f}%' if p > 0 else '',
+                colors=['#FF9999','#66B2FF','#99FF99'])
+        ax2.set_title("Reported Symptoms")
+        st.pyplot(fig2)
 
 # ----------------- Admin View -----------------
 elif st.session_state.role == "admin":
@@ -209,8 +224,8 @@ elif st.session_state.role == "admin":
 # ----------------- Footer -----------------
 st.markdown("""
     <hr>
-    <p style='text-align:center; font-size: 14px; color: gray;'>
-    Made with ❤️ by <strong>Kelvin Maina</strong> |
+    <p style='text-align:center; font-size: 14px; color: #888;'>
+    Made with ❤️ by Kelvin Maina |
     <a href="https://github.com/kevobinkou" target="_blank">GitHub</a>
     </p>
 """, unsafe_allow_html=True)
