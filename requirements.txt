@@ -1,7 +1,9 @@
-streamlit
-scikit-learn
-numpy
-matplotlib
-pillow
-mysql-connector-python
-python-dotenv
+streamlit>=1.35.0
+scikit-learn>=1.3
+numpy>=1.24
+matplotlib>=3.7
+pillow>=9.5
+mysql-connector-python>=8.0.33
+python-dotenv>=1.0
+joblib>=1.3
+
