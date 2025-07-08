@@ -156,9 +156,10 @@ if st.session_state.role == "student":
 
         prediction = model.predict(input_data)[0]
         proba = model.predict_proba(input_data)[0]
-        confidence = round(np.max(proba) * 100, 2)
+        confidence = round(float(np.max(proba)) * 100, 2)  # ✅ Native float
 
         result_label = "Needs Support" if prediction == 1 else "No Strong Indicators"
+
         if prediction == 1:
             st.error("⚠️ The student may need mental health support. Please consider counseling.")
         else:
@@ -166,15 +167,20 @@ if st.session_state.role == "student":
 
         st.info(f"🔍 Model Confidence: **{confidence}%**")
 
+        # ✅ Safe casting of all fields for MySQL insert
         record = (
-            st.session_state.user,
-            gender_map[gender], age, course_map[course], year, cgpa,
-            marital_map[marital_status],
-            binary_map[anxiety],
-            binary_map[panic_attack],
-            binary_map[specialist],
+            str(st.session_state.user),
+            int(gender_map[gender]),
+            int(age),
+            int(course_map[course]),
+            int(year),
+            float(cgpa),
+            int(marital_map[marital_status]),
+            int(binary_map[anxiety]),
+            int(binary_map[panic_attack]),
+            int(binary_map[specialist]),
             result_label,
-            confidence
+            float(confidence)
         )
 
         insert_query = """
